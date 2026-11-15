@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Live Tuukawo trip</title>
+    <link rel="icon" href="favicon.png" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      #map { height: 55vh; border-radius: 24px; margin-top: 16px; z-index: 0; }
+      .status { font-size: 22px; font-weight: 800; color: var(--ink); margin: 0; }
+      .row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+      .rider-dot { width: 30px; height: 30px; border-radius: 50%; background: #ffcc00; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+      .pick-dot { width: 18px; height: 18px; border-radius: 50%; background: #0a3d23; border: 3px solid #fff; }
+      .drop-dot { width: 18px; height: 18px; border-radius: 50%; background: #ffcc00; border: 3px solid #0a3d23; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a href="./"><img src="logo.png" alt="Tuukawo" /></a>
+        <span class="pill">Live trip</span>
+      </header>
+      <div id="info" class="card"><p class="muted">Loading the trip...</p></div>
+      <div id="map"></div>
+      <p class="muted">This page updates every 10 seconds and stops working when the trip ends. In an emergency call 999 or 112.</p>
+      <footer>Tuukawo, Mbale City, Uganda.</footer>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      const token = new URLSearchParams(location.search).get('t');
+      const STATUS = { coming: 'Rider is on the way to the pickup', arrived: 'Rider has arrived at the pickup', started: 'On the way to the drop-off' };
+      const map = L.map('map', { zoomControl: true }).setView([1.0806, 34.1753], 14);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      const icon = (cls) => L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+      let rider, pick, drop, fitted = false, timer;
+
+      async function refresh() {
+        const info = document.getElementById('info');
+        if (!token) { info.innerHTML = '<p class="note err">This link is not complete.</p>'; return; }
+        try {
+          const d = await api('rpc/shared_trip', { method: 'POST', body: JSON.stringify({ token }) });
+          if (!d.found) { info.innerHTML = '<p class="note err">Trip not found.</p>'; clearInterval(timer); return; }
+          if (!d.active) {
+            info.innerHTML = `<p class="status">This trip has ended</p><p class="muted">The live link stops when the trip is ${escapeHtml(d.status)}.</p>`;
+            clearInterval(timer);
+            return;
+          }
+          const vehicle = d.vehicle === 'driver' ? 'Car' : 'Boda';
+          info.innerHTML = `<div class="row"><p class="status">${escapeHtml(STATUS[d.status] || d.status)}</p></div>
+            <p><strong>${escapeHtml(d.rider || 'Rider')}</strong> &middot; ${vehicle} ${escapeHtml(d.plate || '')} ${d.bike ? '&middot; Bike ' + escapeHtml(d.bike) : ''}</p>
+            <p class="muted">${escapeHtml(d.pickup.label || 'Pickup')} &rarr; ${escapeHtml(d.drop.label || 'Drop-off')}</p>
+            ${d.location ? `<p class="muted">Location updated ${Math.max(0, Math.round((Date.now() - Date.parse(d.location.at)) / 1000))} seconds ago</p>` : ''}`;
+          if (!pick) pick = L.marker([d.pickup.lat, d.pickup.lng], { icon: icon('pick-dot') }).addTo(map).bindPopup('Pickup');
+          if (!drop) drop = L.marker([d.drop.lat, d.drop.lng], { icon: icon('drop-dot') }).addTo(map).bindPopup('Drop-off');
+          if (d.location) {
+            const at = [d.location.lat, d.location.lng];
+            if (!rider) rider = L.marker(at, { icon: icon('rider-dot') }).addTo(map).bindPopup(d.rider || 'Rider');
+            else rider.setLatLng(at);
+          }
+          if (!fitted) {
+            const pts = [[d.pickup.lat, d.pickup.lng], [d.drop.lat, d.drop.lng]].concat(d.location ? [[d.location.lat, d.location.lng]] : []);
+            map.fitBounds(pts, { padding: [40, 40] });
+            fitted = true;
+          }
+        } catch (e) {
+          info.innerHTML = `<p class="note err">${escapeHtml(e.message)} Retrying...</p>`;
+        }
+      }
+      refresh();
+      timer = setInterval(refresh, 10000);
+    </script>
+  </body>
+</html>
