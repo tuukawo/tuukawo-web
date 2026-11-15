@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delete your Tuukawo account</title>
+    <meta name="description" content="Ask Tuukawo to delete your account and personal data." />
+    <link rel="icon" href="favicon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a href="./"><img src="logo.png" alt="Tuukawo" /></a>
+        <nav><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></nav>
+      </header>
+
+      <span class="pill">Account deletion</span>
+      <h1>Delete your Tuukawo account</h1>
+      <p>
+        The quickest way is in the app: open <strong>Account</strong>, then <strong>Delete my account</strong>. If you cannot use the app,
+        send us this form. Our staff will call the phone number to confirm it is really you, then delete the account.
+      </p>
+
+      <div class="card">
+        <h2 style="margin-top: 0">What we delete and what we keep</h2>
+        <ul>
+          <li>Deleted: your name, phone number, email, saved places, photos, ID documents, next of kin and signatures.</li>
+          <li>Kept without your name or contact details: payment and trip records, because the business must keep financial records.</li>
+          <li>We cannot delete an account while a trip is in progress or platform fees are unpaid. We will tell you if that is the case.</li>
+        </ul>
+      </div>
+
+      <form class="card" id="form">
+        <label for="name">Your full name</label>
+        <input id="name" required autocomplete="name" maxlength="120" />
+        <label for="phone">Phone number of your Tuukawo account</label>
+        <input id="phone" required inputmode="tel" autocomplete="tel" placeholder="0771 234567" />
+        <label for="reason">Anything you want to tell us (optional)</label>
+        <textarea id="reason" rows="3" maxlength="1000"></textarea>
+        <button id="send" type="submit">Request deletion</button>
+        <div id="result"></div>
+      </form>
+
+      <footer>Tuukawo, Mbale City, Uganda. <a href="privacy.html">Privacy Policy</a></footer>
+    </div>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      document.getElementById('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('send');
+        const out = document.getElementById('result');
+        btn.disabled = true;
+        out.innerHTML = '';
+        try {
+          await api('rpc/request_account_deletion', {
+            method: 'POST',
+            body: JSON.stringify({
+              p_name: document.getElementById('name').value,
+              p_phone: document.getElementById('phone').value,
+              p_reason: document.getElementById('reason').value,
+            }),
+          });
+          document.getElementById('form').innerHTML =
+            '<p class="note ok">Thank you. We have your request. Our staff will call you to confirm, then delete your account.</p>';
+        } catch (err) {
+          out.innerHTML = `<p class="note err">${escapeHtml(err.message)}</p>`;
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
