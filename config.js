@@ -1,0 +1,1 @@
+window.TUUKAWO_CONFIG = {"url":"https://rkmiqxbuqkaikvcyzwyz.supabase.co","anonKey":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrbWlxeGJ1cWthaWt2Y3l6d3l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMDk1MzgsImV4cCI6MjEwMzU4NTUzOH0.M-NN4AW3NM78_-57bwVJDUCdgoPiPt7KoIVamgXdW7w"};
