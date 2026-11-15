@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tuukawo merchant</title>
+    <meta property="og:title" content="Shop on Tuukawo" />
+    <meta property="og:description" content="See products and prices, then order in the Tuukawo app. Delivered by Tuukawo riders in Mbale." />
+    <meta property="og:image" content="logo.png" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .hero { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 24px; margin-top: 16px; background: var(--soft); }
+      .name { font-size: 28px; font-weight: 800; color: var(--ink); margin: 16px 0 4px; letter-spacing: -0.5px; }
+      .tags { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+      .tag { padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--soft); color: var(--accent); }
+      .tag.closed { background: var(--line); color: var(--muted); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+      .prod { background: var(--card); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+      .prod img, .prod .ph { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--soft); }
+      .prod .price { font-weight: 800; color: var(--accent); }
+      .prod.out { opacity: 0.55; }
+      .out-tag { font-size: 12px; font-weight: 700; color: var(--danger); }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+      .btn { display: inline-block; padding: 12px 18px; border-radius: 999px; background: var(--green); color: #fff; font-weight: 700; text-decoration: none; }
+      .btn.light { background: var(--soft); color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a href="./"><img src="logo.png" alt="Tuukawo" /></a>
+        <span class="pill">Merchant</span>
+      </header>
+      <div id="shop"><p class="muted">Loading...</p></div>
+      <footer>Tuukawo, Mbale City, Uganda. Pay the merchant and the rider directly. Tuukawo takes no commission.</footer>
+    </div>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const ugx = (n) => `UGX ${Number(n).toLocaleString('en-US')}`;
+      (async () => {
+        const el = document.getElementById('shop');
+        const id = new URLSearchParams(location.search).get('m');
+        if (!id || !/^[0-9a-f-]{36}$/i.test(id)) { el.innerHTML = '<p class="note err">This link is not complete.</p>'; return; }
+        try {
+          const m = await api('rpc/merchant_page', { method: 'POST', body: JSON.stringify({ merchant: id }) });
+          if (!m) { el.innerHTML = '<p class="note err">This merchant is not available right now.</p>'; return; }
+          document.title = `${m.business_name} | Tuukawo`;
+          const h = m.hours || {};
+          const closedDays = (h.closed_days || []).map((d) => DAYS[d]).join(', ');
+          const hours = (h.open === h.close ? 'Open all day' : `Open ${h.open} to ${h.close}`) + (closedDays ? `, closed ${closedDays}` : '');
+          const rating = m.rating && m.rating.count ? `Rated ${m.rating.avg} by ${m.rating.count}` : 'New on Tuukawo';
+          const phone = (m.phone || '').replace(/\D/g, '');
+          el.innerHTML = `
+            ${m.logo_url ? `<img class="hero" src="${escapeHtml(m.logo_url)}" alt="" />` : ''}
+            <h1 class="name">${escapeHtml(m.business_name)}</h1>
+            <p class="muted">${escapeHtml([m.category, m.area, m.address].filter(Boolean).join('  ·  '))}</p>
+            <div class="tags">
+              <span class="tag ${m.is_open ? '' : 'closed'}">${m.is_open ? 'Open now' : 'Closed now'}</span>
+              <span class="muted">${escapeHtml(hours)}</span>
+              <span class="muted">${escapeHtml(rating)}</span>
+            </div>
+            ${m.description ? `<p>${escapeHtml(m.description)}</p>` : ''}
+            <div class="actions">
+              <a class="btn" href="https://play.google.com/store/apps/details?id=com.tuukawo.app">Order in the Tuukawo app</a>
+              ${phone ? `<a class="btn light" href="https://wa.me/${phone}">WhatsApp</a><a class="btn light" href="tel:+${phone}">Call</a>` : ''}
+            </div>
+            <h2>Products</h2>
+            ${m.products.length ? '' : '<p class="muted">No products listed yet.</p>'}
+            <div class="grid">${m.products.map((p) => `
+              <div class="prod ${p.in_stock ? '' : 'out'}">
+                ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="" loading="lazy" />` : '<div class="ph"></div>'}
+                <strong>${escapeHtml(p.name)}</strong>
+                <span class="price">${ugx(p.price)}</span>
+                ${p.in_stock ? '' : '<span class="out-tag">Out of stock</span>'}
+              </div>`).join('')}
+            </div>`;
+        } catch (e) {
+          el.innerHTML = `<p class="note err">${escapeHtml(e.message)}</p>`;
+        }
+      })();
+    </script>
+  </body>
+</html>
